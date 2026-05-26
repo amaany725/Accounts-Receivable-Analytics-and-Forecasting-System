@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        Customer Summary
+    </title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+    
+    <link
+
+        rel="stylesheet"
+
+        href="{{ url_for('static', filename='style.css') }}"
+
+    >
+
+</head>
+
+<body style="background:#f5f7fb;">
+
+<div class="container-fluid py-5 px-5">
+
+    <a
+
+        onclick="history.back()"
+
+        class="btn btn-outline-dark mb-4"
+
+    >
+
+        Back
+
+    </a>
+
+    <!-- TITLE -->
+    <h1 class="mb-4">
+
+        {{ customer_name }}
+
+    </h1>
+
+<div class="mb-4">
+
+    <a
+
+        href="/download-customer-pdf/{{ customer_name }}"
+
+        class="btn btn-danger me-2 download-btn"
+
+    >
+
+        Download PDF
+
+    </a>
+
+    <a
+
+        href="/download-customer-excel/{{ customer_name }}"
+
+        class="btn btn-success download-btn"
+
+    >
+
+        Download Excel
+
+    </a>
+
+</div>
+
+    <!-- KPI -->
+    <!-- GENERAL OVERVIEW -->
+    <div class="card border-primary shadow-sm p-4 mb-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+
+            <h3 class="text-primary m-0">
+
+                General Overview
+
+            </h3>
+
+        </div>
+
+        <div class="row text-center">
+
+            <div class="col-md-4 mb-4">
+
+                <small class="text-muted d-block mb-2">
+
+                    Total Invoice
+
+                </small>
+
+                <h1 class="fw-bold">
+
+                    {{ total_invoice }}
+
+                </h1>
+
+            </div>
+
+            <div class="col-md-4 mb-4">
+
+                <small class="text-muted d-block mb-2">
+
+                    Total Transaction
+
+                </small>
+
+                <h2 class="fw-bold">
+
+                    Rp {{ "{:,.0f}".format(total_amount) }}
+
+                </h2>
+
+            </div>
+
+            <div class="col-md-4 mb-4">
+
+                <small class="text-muted d-block mb-2">
+
+                    Average Delay
+
+                </small>
+
+                <h2 class="fw-bold">
+
+                    {{ avg_delay }} hari
+
+                </h2>
+
+            </div>
+
+        </div>
+
+        <hr>
+
+        <div class="row text-center mt-4">
+
+            <div style="flex:1;">
+
+                <small class="text-muted d-block mb-2">
+
+                    First Transaction
+
+                </small>
+
+                <h4 class="fw-bold">
+
+                    {{ first_transaction }}
+
+                </h4>
+
+            </div>
+
+            <div style="flex:1;">
+
+                <small class="text-muted d-block mb-2">
+
+                    Last Transaction
+
+                </small>
+
+                <h4 class="fw-bold">
+
+                    {{ last_transaction }}
+
+                </h4>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- BOTTOM KPI -->
+    <div class="kpi-section mb-4">
+
+        <!-- PAYMENT SUCCESS -->
+        <div style="flex:1;">
+
+            <div class="card border-success shadow-sm p-4 h-100">
+
+                <h3 class="text-success mb-4">
+
+                    Payment Success
+
+                </h3>
+
+                <div class="mb-4">
+
+                    <small>Total Invoice Lunas</small>
+
+                    <h2>{{ paid_invoice }}</h2>
+
+                </div>
+
+                <div>
+
+                    <small>Total Payment Received</small>
+
+                    <h3>
+
+                        Rp {{ "{:,.0f}".format(paid_amount) }}
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- OUTSTANDING -->
+        <div style="flex:1;">
+
+            <div class="card border-danger shadow-sm p-4 h-100">
+
+                <h3 class="text-danger mb-4">
+
+                    Outstanding Risk
+
+                </h3>
+
+                <div class="mb-4">
+
+                    <small>Outstanding Invoice</small>
+
+                    <h2>{{ unpaid_count }}</h2>
+
+                </div>
+
+                <div>
+
+                    <small>Outstanding Amount</small>
+
+                    <h3>
+
+                        Rp {{ "{:,.0f}".format(outstanding_amount) }}
+
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- BEHAVIOR NOTES -->
+    <div class="card p-4 mb-4 behavior-section">
+
+        <h4 class="mb-3">
+            Behavior Analysis
+        </h4>
+
+        <div class="behavior-box">
+
+            {% for note in behavior_notes %}
+
+                <div class="behavior-item">
+
+                    • {{ note }}
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    <!-- COLLECTION NOTES -->
+    <div class="card p-4 mb-4 collection-notes">
+
+        <h4 class="mb-4">
+
+            Collection Insights
+
+        </h4>
+
+        <!-- ADD NOTE -->
+        <form class="note-form" action="/save-note" method="POST">
+
+            <input
+                type="hidden"
+                name="customer_name"
+                value="{{ customer_name }}"
+            >
+            <textarea
+
+                name="note"
+
+                class="form-control mb-3"
+
+                rows="3"
+
+                placeholder="Tambahkan catatan collection..."
+
+            ></textarea>
+
+            <button
+                type="submit"
+                class="btn btn-primary action-btn"
+            >
+
+                Save Note
+
+            </button>
+
+        </form>
+
+        <hr class="my-4">
+
+        <!-- NOTE LIST -->
+        {% for note in notes_data %}
+
+        <div class="card border-0 bg-light p-3 mb-3">
+
+            <div class="d-flex justify-content-between">
+
+                <small class="text-muted">
+
+                    {{ note['created_at'] }}
+
+                </small>
+
+                <div>
+
+                    <!-- DELETE -->
+                    <a
+
+                        href="/delete-note/{{ note['id'] }}/{{ customer_name }}"
+
+                        class="btn btn-sm btn-danger action-btn"
+
+                    >
+
+                        Delete
+
+                    </a>
+
+                </div>
+
+            </div>
+
+            <!-- EDIT FORM -->
+            <form class="note-form" action="/edit-note" method="POST">
+
+                <input
+                    type="hidden"
+                    name="note_id"
+                    value="{{ note['id'] }}"
+                >
+
+                <input
+                    type="hidden"
+                    name="customer_name"
+                    value="{{ customer_name }}"
+                >
+
+                {% if request.args.get('pdf') != '1' %}
+
+                <textarea
+
+                    name="updated_note"
+
+                    class="form-control my-3"
+
+                    rows="3"
+
+                >{{ note['note'] }}</textarea>
+
+                {% else %}
+
+                <div class="pdf-note">
+
+                    {{ note['note'] }}
+
+                </div>
+
+                {% endif %}
+
+                <button
+                    type="submit"
+                    class="btn btn-sm btn-warning action-btn"
+                >
+
+                    Update Note
+
+                </button>
+
+            </form>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <!-- OUTSTANDING -->
+    <div class="card p-4 mb-4">
+
+        <h4 class="mb-4">
+
+            Outstanding Invoice
+
+        </h4>
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered">
+
+                <thead class="table-danger">
+
+                    <tr>
+
+                        <th>No. Invoice</th>
+
+                        <th>Invoice Date</th>
+
+                        <th>Due Date</th>
+
+                        <th>Payment Date</th>
+
+                        <th>Total Amount</th>
+
+                        <th>Balance Due</th>
+                        
+                        <th>Delay</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for row in outstanding_table %}
+
+                    <tr>
+
+                        <td>{{ row['Invoice Number'] }}</td>
+
+                        <td>{{ row['Transaction Date'] }}</td>
+
+                        <td>{{ row['Due Date'] }}</td>
+
+                        <td>
+
+                            {% if row['Payment Date'] and row['Payment Date'] != 'nan' %}
+
+                                {{ row['Payment Date'] }}
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            Rp
+                            {{ "{:,.0f}".format(row['Total Amount']) }}
+
+                        </td>
+
+                        <td class="text-danger fw-bold">
+
+                            Rp
+                            {{ "{:,.0f}".format(row['Balance Due']) }}
+
+                        </td>
+
+                        <td>
+
+                            {{ row['Delay']|int }} hari
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- PAYMENT SUCCESS -->
+    <div class="card p-4 mb-4">
+
+        <h4 class="mb-4 text-success">
+
+            Payment Success History
+
+        </h4>
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered">
+
+                <thead class="table-success">
+
+                    <tr>
+
+                        <th>No. Invoice</th>
+
+                        <th>Invoice Date</th>
+
+                        <th>Due Date</th>
+
+                        <th>Payment Date</th>
+
+                        <th>Total Amount</th>
+
+                        <th>Delay</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for row in payment_table %}
+
+                    <tr>
+
+                        <td>{{ row['Invoice Number'] }}</td>
+
+                        <td>{{ row['Transaction Date'] }}</td>
+
+                        <td>{{ row['Due Date'] }}</td>
+
+                        <td>
+
+                            {% if row['Payment Date'] and row['Payment Date'] != 'nan' %}
+
+                                {{ row['Payment Date'] }}
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            Rp
+                            {{ "{:,.0f}".format(row['Total Amount']) }}
+
+                        </td>
+
+                        <td>
+
+                            {{ row['Delay']|int }} hari
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

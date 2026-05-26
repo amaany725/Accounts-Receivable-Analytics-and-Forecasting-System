@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Payment Risk Prediction</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <style>
+
+        body{
+            background:#f5f7fb;
+            font-family: Arial, sans-serif;
+        }
+
+        .sidebar{
+            height:100vh;
+            background:#111827;
+            color:white;
+            padding:30px 20px;
+            position:fixed;
+            width:240px;
+        }
+
+        .sidebar h2{
+            font-weight:bold;
+            margin-bottom:40px;
+        }
+
+        .sidebar a{
+            display:block;
+            color:white;
+            text-decoration:none;
+            padding:12px 15px;
+            border-radius:10px;
+            margin-bottom:10px;
+            transition:0.3s;
+        }
+
+        .sidebar a:hover{
+            background:#1f2937;
+        }
+
+        .sidebar .active{
+            background:#f59e0b;
+            color:black;
+            font-weight:bold;
+        }
+
+        .main-content{
+            margin-left:260px;
+            padding:40px;
+        }
+
+        .hero-section{
+            margin-bottom:30px;
+        }
+
+        .main-title{
+            font-size:48px;
+            font-weight:800;
+            color:#111827;
+            line-height:1.1;
+        }
+
+        .subtitle{
+            color:#6b7280;
+            margin-top:10px;
+        }
+
+        .custom-card{
+            background:white;
+            border-radius:20px;
+            padding:30px;
+            box-shadow:0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom:20px;
+        }
+
+        .result-box{
+            background:#f9fafb;
+            padding:20px;
+            border-radius:15px;
+        }
+
+        .description-box{
+            background:#fff7ed;
+            padding:20px;
+            border-radius:15px;
+            margin-top:20px;
+        }
+
+        .special-note{
+            background:#fee2e2;
+            border-left:6px solid #dc2626;
+            padding:20px;
+            border-radius:12px;
+            margin-top:20px;
+        }
+
+        pre{
+            white-space:pre-wrap;
+            font-family:inherit;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+    <h2 class="mb-4">
+
+        {{ session.get('company', 'Risk System') }}
+
+    </h2>
+
+    <a href="/forecast" class="active">
+        Forecasting
+    </a>
+
+    <a href="/dashboard">
+        Dashboard
+    </a>
+
+    <a href="/history">
+        History
+    </a>
+
+    <a href="/accurate">
+        Accurate
+    </a>
+
+    <a href="/company-selector">
+        Switch Company
+    </a>
+
+    <a href="/logout">
+        Logout
+    </a>
+</div>
+
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+
+    <div class="hero-section">
+
+        <h1 class="main-title">
+            PAYMENT <br>
+            RISK PREDICTION
+        </h1>
+
+        <p class="hero-desc">
+
+            Sistem prediksi risiko keterlambatan pembayaran
+            berbasis machine learning dan histori invoice customer.
+
+        </p>
+
+    </div>
+
+    <div class="row">
+
+        <!-- FORM -->
+        <div class="col-lg-5">
+
+            <div class="custom-card">
+
+                <h3 class="mb-4">
+                    Input Data Customer
+                </h3>
+
+                <form method="POST">
+
+                    <!-- CUSTOMER -->
+                    <div class="mb-3 position-relative">
+
+                        <label class="form-label">
+                            Nama Customer
+                        </label>
+
+                        <input
+                            type="text"
+                            name="customer_name"
+                            id="customerInput"
+                            class="form-control"
+                            autocomplete="off"
+                            required
+                        >
+
+                        <div
+                            id="suggestionBox"
+                            class="list-group mt-1"
+                        ></div>
+
+                    </div>
+
+                    <!-- CUSTOMER TYPE -->
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Customer Type
+                        </label>
+
+                        <select
+                            name="customer_type"
+                            class="form-select"
+                        >
+
+                            <option value="PT">PT</option>
+                            <option value="CV">CV</option>
+                            <option value="UD">UD</option>
+                            <option value="PERORANGAN">PERORANGAN</option>
+
+                        </select>
+
+                    </div>
+
+                    <!-- ORDER TYPE -->
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Order Type
+                        </label>
+
+                        <select
+                            name="order_type"
+                            class="form-select"
+                        >
+
+                            <option value="TRADING">
+                                TRADING
+                            </option>
+
+                            <option value="PROJECT">
+                                PROJECT
+                            </option>
+
+                            <option value="WORKSHOP">
+                                WORKSHOP
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- AMOUNT -->
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Total Amount
+                        </label>
+
+                        <input
+                            type="number"
+                            name="amount"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+
+                    <!-- TERM -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            Term (hari)
+                        </label>
+
+                        <input
+                            type="number"
+                            name="term"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+
+                    <!-- BUTTON -->
+                    <button class="btn btn-warning w-100">
+                        Prediksi Risiko
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- RESULT -->
+        <div class="col-lg-7">
+            {% if result %}
+            <div class="custom-card">
+                <h3 class="mb-4">
+                    Hasil Prediksi
+                </h3>
+
+                <!-- STATUS -->
+                <div class="risk-card">
+                    <div class="risk-header">
+                        <div>
+                            <div class="risk-label">
+                                Prediction Result
+                            </div>
+
+                            <div class="risk-status">
+                                {{ result.status }}
+                            </div>
+                        </div>
+
+                        <div class="risk-percent">
+                            {{ result.prob_percent }}%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REKOMENDASI -->
+                <div class="mt-4">
+                    <h5>
+                        Rekomendasi Sistem
+                    </h5>
+                    <p class="mb-1">
+                        <strong>Term:</strong>
+                        {{ result.recommendation.recommended_term }}
+                        hari
+                    </p>
+                </div>
+
+                <!-- DESKRIPSI -->
+                <div class="description-box">
+                    <pre>{{ result.description }}</pre>
+                </div>
+
+                <!-- CATATAN KHUSUS -->
+                {% if result.special_note %}
+                <div class="special-note">
+                    <h5>
+                        ⚠️ Catatan Investigasi Khusus
+                    </h5>
+                    <p class="mb-0">
+                        {{ result.special_note }}
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- BUTTON DEEP ANALYSIS -->
+                <div class="mt-3">
+                    <a href="/customer/{{ customer_name }}">
+                        <button class="btn btn-dark">
+                            Customer Deep Analysis
+                        </button>
+                    </a>
+                </div>
+
+                <!-- PLOT -->
+                <div class="mt-4">
+                    <img
+                        src="{{ url_for('static', filename='plot.png') }}"
+                        class="img-fluid rounded"
+                    >
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const input = document.getElementById(
+    'customerInput'
+)
+
+const suggestionBox = document.getElementById(
+    'suggestionBox'
+)
+
+input.addEventListener('input', async () => {
+    const keyword = input.value
+    if(keyword.length < 1){
+        suggestionBox.innerHTML = ''
+        return
+    }
+    const response = await fetch(
+        `/customer-suggestions?q=${keyword}`
+    )
+    const data = await response.json()
+    suggestionBox.innerHTML = ''
+    data.suggestions.forEach(customer => {
+        const item = document.createElement('button')
+        item.type = 'button'
+        item.className = 'list-group-item list-group-item-action'
+        item.innerText = customer
+        item.onclick = () => {
+            input.value = customer
+            suggestionBox.innerHTML = ''
+        }
+        suggestionBox.appendChild(item)
+    })
+})
+
+window.addEventListener('pageshow', () => {
+    suggestionBox.innerHTML = ''
+})
+
+</script>
+
+</body>
+</html>

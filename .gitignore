@@ -1,0 +1,7 @@
+envdj/
+__pycache__/
+*.pyc
+token.json
+.vscode/
+static/plot.png
+*.xlsx

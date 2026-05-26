@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Accurate Integration</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+<!-- ===================================== -->
+<!-- SIDEBAR -->
+<!-- ===================================== -->
+<div class="sidebar">
+
+    <h2 class="mb-4">
+
+        {{ session.get('company', 'Risk System') }}
+
+    </h2>
+
+    <a href="/forecast">
+        Forecasting
+    </a>
+
+    <a href="/dashboard">
+        Dashboard
+    </a>
+
+    <a href="/history">
+        History
+    </a>
+
+    <a href="/accurate" class="active">
+        Accurate
+    </a>
+
+    <a href="/company-selector">
+        Switch Company
+    </a>
+
+    <a href="/logout">
+        Logout
+    </a>
+
+</div>
+
+<!-- ===================================== -->
+<!-- MAIN CONTENT -->
+<!-- ===================================== -->
+<div class="main-content">
+
+    <div class="card-box">
+
+        <h1 class="mb-3">
+            Accurate Integration
+        </h1>
+
+        <p class="page-desc">
+            Sinkronisasi data invoice Accurate Online
+            untuk forecasting risiko keterlambatan pembayaran.
+        </p>
+
+        <hr class="mb-4">
+
+        {% if token %}
+
+        <!-- ===================================== -->
+        <!-- STATUS -->
+        <!-- ===================================== -->
+        <div class="status-card">
+
+            <div class="status-dot"></div>
+
+            Connected to Accurate API
+
+        </div>
+
+        <!-- ===================================== -->
+        <!-- DATABASE -->
+        <!-- ===================================== -->
+        <div class="db-card">
+
+            <div class="db-label">
+                Active Database
+            </div>
+
+            <div class="db-name">
+
+                {{ session.get('db_name', 'Database belum terhubung') }}
+
+            </div>
+
+        </div>
+
+        <!-- ===================================== -->
+        <!-- SYNC SECTION -->
+        <!-- ===================================== -->
+        <div class="custom-card mt-4">
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+                <div>
+
+                    <h3 class="mb-1">
+                        Data Synchronization
+                    </h3>
+
+                    <p class="sync-desc">
+                        Sinkronisasi invoice terbaru dari Accurate Online.
+                    </p>
+
+                </div>
+
+                <form
+                    id="syncForm"
+                    action="/sync-data"
+                    method="POST"
+                >
+
+                    <!-- ===================================== -->
+                    <!-- SYNC FILTER -->
+                    <!-- ===================================== -->
+                    <div class="sync-filter-box mb-4">
+
+                        <label class="fw-bold mb-3">
+                            Sync Mode
+                        </label>
+
+                        <div class="form-check">
+
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="sync_mode"
+                                value="all"
+                                checked
+                            >
+
+                            <label class="form-check-label">
+                                Sync Semua Invoice
+                            </label>
+
+                        </div>
+
+                        <div class="form-check mb-3">
+
+                            <input
+                                class="form-check-input"
+                                type="radio"
+                                name="sync_mode"
+                                value="date"
+                            >
+
+                            <label class="form-check-label">
+                                Sync Berdasarkan Tanggal
+                            </label>
+
+                        </div>
+
+                        <div class="row">
+
+                            <div class="col-md-6">
+
+                                <label class="mb-2">
+                                    Start Date
+                                </label>
+
+                                <input
+                                    type="date"
+                                    class="form-control"
+                                    name="start_date"
+                                >
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label class="mb-2">
+                                    End Date
+                                </label>
+
+                                <input
+                                    type="date"
+                                    class="form-control"
+                                    name="end_date"
+                                >
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <!-- ===================================== -->
+                    <!-- BUTTON -->
+                    <!-- ===================================== -->
+                    <button class="btn-sync">
+
+                        🔄 Sync Data
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        {% else %}
+
+        <!-- ===================================== -->
+        <!-- NOT CONNECTED -->
+        <!-- ===================================== -->
+        <div class="not-connected-card">
+
+            <h3>
+                Accurate API Not Connected
+            </h3>
+
+            <p>
+                Silakan login Accurate terlebih dahulu.
+            </p>
+
+            <a
+                href="{{ url_for('connect_accurate') }}"
+                class="btn-connect"
+            >
+                🔑 Login Accurate
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+<!-- ===================================== -->
+<!-- MODAL -->
+<!-- ===================================== -->
+<div id="syncModal" class="sync-modal">
+
+    <div class="sync-content">
+
+        <div class="loader"></div>
+
+        <h3>
+            Sinkronisasi Data
+        </h3>
+
+        <p id="syncText">
+            Menghubungkan sistem...
+        </p>
+
+    </div>
+
+</div>
+
+<!-- ===================================== -->
+<!-- SCRIPT -->
+<!-- ===================================== -->
+<script>
+
+const form = document.getElementById('syncForm');
+
+if(form){
+
+    form.addEventListener('submit', function(e){
+
+        e.preventDefault();
+
+        // =====================================
+        // AMBIL INPUT
+        // =====================================
+        const selectedMode = document.querySelector(
+            'input[name="sync_mode"]:checked'
+        ).value;
+
+        const startDate = document.querySelector(
+            'input[name="start_date"]'
+        ).value;
+
+        const endDate = document.querySelector(
+            'input[name="end_date"]'
+        ).value;
+
+        // =====================================
+        // VALIDASI MODE TANGGAL
+        // =====================================
+        if(selectedMode === 'date'){
+
+            // tanggal kosong
+            if(!startDate || !endDate){
+
+                alert(
+                    'Silakan isi start date dan end date terlebih dahulu.'
+                );
+
+                return;
+            }
+
+            // end date < start date
+            if(startDate > endDate){
+
+                alert(
+                    'End date tidak boleh lebih kecil dari start date.'
+                );
+
+                return;
+            }
+
+        }
+
+        // =====================================
+        // TAMPILKAN MODAL
+        // =====================================
+        document.getElementById(
+            'syncModal'
+        ).style.display = 'flex';
+
+        const syncText = document.getElementById(
+            'syncText'
+        );
+
+        const messages = [
+
+            'Mengambil data invoice...',
+            'Preprocessing data invoice...',
+            'Update historical dataset...',
+            'Sinkronisasi berjalan...'
+
+        ];
+
+        let index = 0;
+
+        syncText.innerText = messages[0];
+
+        setInterval(() => {
+
+            index++;
+
+            if(index >= messages.length){
+
+                index = 0;
+
+            }
+
+            syncText.innerText = messages[index];
+
+        }, 1800);
+
+        // =====================================
+        // SUBMIT FORM
+        // =====================================
+        setTimeout(() => {
+
+            form.submit();
+
+        }, 1000);
+
+    });
+
+}
+
+</script>
+
+</body>
+</html>
