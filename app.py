@@ -2128,7 +2128,7 @@ def download_customer_pdf(customer_name):
             {
                 "name": "session",
                 "value": request.cookies.get("session"),
-                "domain": "127.0.0.1",
+                "domain": request.host.split(":")[0],
                 "path": "/"
             }
         ])
