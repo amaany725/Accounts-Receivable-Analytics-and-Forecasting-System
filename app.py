@@ -72,7 +72,9 @@ COMPANY_DB_MAP = {
 CLIENT_ID = '83fba14d-6a2f-476e-a795-8b51aef39e3d'
 CLIENT_SECRET = '3763bab66987b85a4c4341e2c8fc5366'
 
-REDIRECT_URI = 'http://127.0.0.1:5000/callback'
+REDIRECT_URI = os.getenv(
+    "ACCURATE_REDIRECT_URI"
+)
 TOKEN_FILE = 'token.json'
 # =========================================
 # LOAD MODEL & DATA
