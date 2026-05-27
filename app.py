@@ -2118,50 +2118,214 @@ def download_customer_excel(customer_name):
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+# @app.route('/download-customer-pdf/<customer_name>')
+# def download_customer_pdf(customer_name):
+#     url = request.host_url + f'customer/{customer_name}?pdf=1'
+#     with sync_playwright() as p:
+#         browser = p.chromium.launch(
+#             headless=True,
+#             args=["--no-sandbox"]
+#         )
+#         page = browser.new_page()
+#         page.context.add_cookies([
+#             {
+#                 "name": "session",
+#                 "value": request.cookies.get("session"),
+#                 "domain": request.host.split(":")[0],
+#                 "path": "/"
+#             }
+#         ])
+
+#         page.goto(
+#             url,
+#             wait_until='networkidle'
+#         )
+
+#         page.emulate_media(media='print')
+#         pdf = page.pdf(
+#             format='A4',
+#             print_background=True,
+#             scale=0.85,
+#             margin={
+#                 "top": "20px",
+#                 "bottom": "20px",
+#                 "left": "20px",
+#                 "right": "20px"
+#             }
+#         )
+#         browser.close()
+
+#     return Response(
+#         pdf,
+#         mimetype='application/pdf',
+#         headers={
+#             'Content-Disposition':
+#             f'attachment; filename="{customer_name}_analysis.pdf"'
+#         }
+#     )
+
 @app.route('/download-customer-pdf/<customer_name>')
 def download_customer_pdf(customer_name):
-    url = request.host_url + f'customer/{customer_name}?pdf=1'
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox"]
-        )
-        page = browser.new_page()
-        page.context.add_cookies([
-            {
-                "name": "session",
-                "value": request.cookies.get("session"),
-                "domain": request.host.split(":")[0],
-                "path": "/"
-            }
-        ])
 
-        page.goto(
-            url,
-            wait_until='networkidle'
-        )
+    import io
+    import pandas as pd
 
-        page.emulate_media(media='print')
-        pdf = page.pdf(
-            format='A4',
-            print_background=True,
-            scale=0.85,
-            margin={
-                "top": "20px",
-                "bottom": "20px",
-                "left": "20px",
-                "right": "20px"
-            }
-        )
-        browser.close()
+    from flask import send_file
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle
+    )
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.pagesizes import A4
 
-    return Response(
-        pdf,
-        mimetype='application/pdf',
-        headers={
-            'Content-Disposition':
-            f'attachment; filename="{customer_name}_analysis.pdf"'
+    from database import engine
+
+    # =====================================
+    # LOAD DATA
+    # =====================================
+
+    query = """
+        SELECT *
+        FROM history_forecast
+        WHERE customer = %(customer)s
+        ORDER BY id DESC
+        LIMIT 10
+    """
+
+    df = pd.read_sql(
+        query,
+        engine,
+        params={
+            'customer': customer_name
         }
+    )
+
+    # =====================================
+    # PDF BUFFER
+    # =====================================
+
+    buffer = io.BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
+    elements = []
+
+    styles = getSampleStyleSheet()
+
+    # =====================================
+    # TITLE
+    # =====================================
+
+    title = Paragraph(
+        f"<b>Customer Analysis Report</b><br/>{customer_name}",
+        styles['Title']
+    )
+
+    elements.append(title)
+    elements.append(Spacer(1, 20))
+
+    # =====================================
+    # SUMMARY
+    # =====================================
+
+    total_forecast = len(df)
+
+    summary = Paragraph(
+        f"""
+        <b>Total Forecast Records:</b> {total_forecast}<br/>
+        <b>Generated From:</b> PayRisk Analytics System
+        """,
+        styles['BodyText']
+    )
+
+    elements.append(summary)
+    elements.append(Spacer(1, 20))
+
+    # =====================================
+    # TABLE
+    # =====================================
+
+    if len(df) > 0:
+
+        selected_cols = []
+
+        for col in [
+            'invoice_number',
+            'prediction',
+            'risk_level',
+            'payment_delay_days'
+        ]:
+            if col in df.columns:
+                selected_cols.append(col)
+
+        table_data = [selected_cols]
+
+        for _, row in df.iterrows():
+
+            row_data = []
+
+            for col in selected_cols:
+                row_data.append(str(row[col]))
+
+            table_data.append(row_data)
+
+        table = Table(table_data)
+
+        table.setStyle(TableStyle([
+
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F3A5F')),
+
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+
+            ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
+
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+
+        ]))
+
+        elements.append(table)
+
+    else:
+
+        elements.append(
+            Paragraph(
+                "No forecast history available.",
+                styles['BodyText']
+            )
+        )
+
+    # =====================================
+    # BUILD PDF
+    # =====================================
+
+    doc.build(elements)
+
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f'{customer_name}_analysis.pdf',
+        mimetype='application/pdf'
     )
 
 # =========================================
