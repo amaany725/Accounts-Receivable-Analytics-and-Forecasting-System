@@ -2122,7 +2122,10 @@ def download_customer_excel(customer_name):
 def download_customer_pdf(customer_name):
     url = request.host_url + f'customer/{customer_name}?pdf=1'
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox"]
+        )
         page = browser.new_page()
         page.context.add_cookies([
             {
