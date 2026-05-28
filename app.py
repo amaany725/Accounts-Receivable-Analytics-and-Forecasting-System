@@ -2191,7 +2191,7 @@ def download_customer_pdf(customer_name):
     query = """
         SELECT *
         FROM history_forecast
-        WHERE customer = %(customer)s
+        WHERE "Customer" = %(customer)s
         ORDER BY id DESC
         LIMIT 10
     """
