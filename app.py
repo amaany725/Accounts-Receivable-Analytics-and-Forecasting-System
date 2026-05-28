@@ -39,6 +39,19 @@ from openpyxl.utils import get_column_letter
 from io import BytesIO
 from openpyxl.utils.dataframe import dataframe_to_rows
 import io
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
+
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus.flowables import PageBreak
+
 
 
 app = Flask(__name__)
@@ -2171,9 +2184,6 @@ def download_customer_pdf(customer_name):
 
     company = session.get('company')
 
-    # =====================================
-    # LOAD CUSTOMER DATA
-    # =====================================
     query = """
         SELECT *
         FROM sales_invoice_raw
@@ -2191,50 +2201,15 @@ def download_customer_pdf(customer_name):
         }
     )
 
-    # =====================================
-    # KPI
-    # =====================================
     total_invoice = len(df)
 
-    total_amount = df[
-        'Total Amount'
-    ].sum()
+    total_amount = df['Total Amount'].sum()
 
     avg_delay = round(
         df['Delay'].mean(),
         2
     )
 
-    # =====================================
-    # FIRST & LAST TRANSACTION
-    # =====================================
-    first_transaction_date = pd.to_datetime(
-        df['Transaction Date'],
-        errors='coerce'
-    ).min()
-
-    last_transaction_date = pd.to_datetime(
-        df['Transaction Date'],
-        errors='coerce'
-    ).max()
-
-    if pd.notnull(first_transaction_date):
-        first_transaction = first_transaction_date.strftime(
-            '%d-%m-%Y'
-        )
-    else:
-        first_transaction = '-'
-
-    if pd.notnull(last_transaction_date):
-        last_transaction = last_transaction_date.strftime(
-            '%d-%m-%Y'
-        )
-    else:
-        last_transaction = '-'
-
-    # =====================================
-    # SPLIT DATA
-    # =====================================
     unpaid_df = df[
         df['Status'] != 'Lunas'
     ]
@@ -2255,32 +2230,8 @@ def download_customer_pdf(customer_name):
         'Total Amount'
     ].sum()
 
-    # =====================================
-    # FORMAT DATE
-    # =====================================
-    date_cols = [
-        'Transaction Date',
-        'Due Date',
-        'Payment Date'
-    ]
+    behavior_notes = generate_customer_behavior(df)
 
-    for col in date_cols:
-        df[col] = pd.to_datetime(
-            df[col],
-            errors='coerce'
-        ).dt.strftime('%d-%m-%Y')
-
-    unpaid_df = df[
-        df['Status'] != 'Lunas'
-    ]
-
-    paid_df = df[
-        df['Status'] == 'Lunas'
-    ]
-
-    # =====================================
-    # COLLECTION NOTES
-    # =====================================
     notes_query = """
         SELECT *
         FROM customer_notes
@@ -2298,68 +2249,170 @@ def download_customer_pdf(customer_name):
         }
     )
 
-    notes_df['created_at'] = pd.to_datetime(
-        notes_df['created_at']
-    ).dt.strftime('%d-%m-%Y %H:%M')
+    buffer = BytesIO()
 
-    notes_data = notes_df.to_dict(
-        orient='records'
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=18
     )
 
-    # =====================================
-    # BEHAVIOR NOTES
-    # =====================================
-    behavior_notes = generate_customer_behavior(df)
+    styles = getSampleStyleSheet()
 
-    # =====================================
-    # RENDER HTML
-    # =====================================
-    html = render_template(
-        'customer_pdf.html',
+    elements = []
 
-        customer_name=customer_name,
-
-        total_invoice=total_invoice,
-        total_amount=total_amount,
-        avg_delay=avg_delay,
-
-        first_transaction=first_transaction,
-        last_transaction=last_transaction,
-
-        paid_invoice=paid_invoice,
-        paid_amount=paid_amount,
-
-        unpaid_count=unpaid_count,
-        outstanding_amount=outstanding_amount,
-
-        behavior_notes=behavior_notes,
-
-        notes_data=notes_data,
-
-        outstanding_table=unpaid_df.to_dict(
-            orient='records'
-        ),
-
-        payment_table=paid_df.to_dict(
-            orient='records'
+    # TITLE
+    elements.append(
+        Paragraph(
+            f"<b>{customer_name}</b>",
+            styles['Title']
         )
     )
 
-    # =====================================
-    # GENERATE PDF
-    # =====================================
-    pdf_buffer = io.BytesIO()
+    elements.append(Spacer(1, 20))
 
-    pisa.CreatePDF(
-        src=html,
-        dest=pdf_buffer
+    # GENERAL OVERVIEW
+    overview_data = [
+        ['Total Invoice', str(total_invoice)],
+        ['Total Transaction', f'Rp {total_amount:,.0f}'],
+        ['Average Delay', f'{avg_delay} hari'],
+        ['Paid Invoice', str(paid_invoice)],
+        ['Outstanding Invoice', str(unpaid_count)],
+        ['Outstanding Amount', f'Rp {outstanding_amount:,.0f}']
+    ]
+
+    overview_table = Table(
+        overview_data,
+        colWidths=[200, 250]
     )
 
-    pdf = pdf_buffer.getvalue()
+    overview_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
+        ('GRID', (0,0), (-1,-1), 1, colors.grey),
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+    ]))
 
-    # =====================================
-    # RETURN PDF
-    # =====================================
+    elements.append(
+        Paragraph(
+            "<b>GENERAL OVERVIEW</b>",
+            styles['Heading2']
+        )
+    )
+
+    elements.append(Spacer(1, 10))
+
+    elements.append(overview_table)
+
+    elements.append(Spacer(1, 20))
+
+    # BEHAVIOR
+    elements.append(
+        Paragraph(
+            "<b>BEHAVIOR ANALYSIS</b>",
+            styles['Heading2']
+        )
+    )
+
+    elements.append(Spacer(1, 10))
+
+    for note in behavior_notes:
+        elements.append(
+            Paragraph(
+                f"• {note}",
+                styles['BodyText']
+            )
+        )
+
+    elements.append(Spacer(1, 20))
+
+    # COLLECTION NOTES
+    elements.append(
+        Paragraph(
+            "<b>COLLECTION INSIGHTS</b>",
+            styles['Heading2']
+        )
+    )
+
+    elements.append(Spacer(1, 10))
+
+    if len(notes_df) > 0:
+
+        for _, note in notes_df.iterrows():
+
+            elements.append(
+                Paragraph(
+                    f"<b>{note['created_at']}</b>",
+                    styles['BodyText']
+                )
+            )
+
+            elements.append(
+                Paragraph(
+                    note['note'],
+                    styles['BodyText']
+                )
+            )
+
+            elements.append(Spacer(1, 10))
+
+    else:
+
+        elements.append(
+            Paragraph(
+                "No collection notes.",
+                styles['BodyText']
+            )
+        )
+
+    elements.append(PageBreak())
+
+    # OUTSTANDING TABLE
+    elements.append(
+        Paragraph(
+            "<b>OUTSTANDING INVOICE</b>",
+            styles['Heading2']
+        )
+    )
+
+    elements.append(Spacer(1, 10))
+
+    outstanding_data = [[
+        'Invoice',
+        'Due Date',
+        'Balance',
+        'Delay'
+    ]]
+
+    for _, row in unpaid_df.iterrows():
+
+        outstanding_data.append([
+            str(row['Invoice Number']),
+            str(row['Due Date']),
+            f"Rp {row['Balance Due']:,.0f}",
+            f"{row['Delay']} hari"
+        ])
+
+    outstanding_table = Table(outstanding_data)
+
+    outstanding_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.red),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+    ]))
+
+    elements.append(outstanding_table)
+
+    doc.build(elements)
+
+    pdf = buffer.getvalue()
+
+    buffer.close()
+
     return Response(
         pdf,
         mimetype='application/pdf',
