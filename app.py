@@ -39,7 +39,6 @@ from openpyxl.utils import get_column_letter
 from io import BytesIO
 from openpyxl.utils.dataframe import dataframe_to_rows
 import io
-from xhtml2pdf import pisa
 
 
 app = Flask(__name__)
