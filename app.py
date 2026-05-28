@@ -2346,39 +2346,17 @@ def download_customer_pdf(customer_name):
     # =====================================
     # GENERATE PDF
     # =====================================
-    with sync_playwright() as p:
+    import io
+    from xhtml2pdf import pisa
 
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage"
-            ]
-        )
+    pdf_buffer = io.BytesIO()
 
-        page = browser.new_page()
+    pisa.CreatePDF(
+        src=html,
+        dest=pdf_buffer
+    )
 
-        page.set_content(
-            html,
-            wait_until='networkidle'
-        )
-
-        page.emulate_media(
-            media='print'
-        )
-
-        pdf = page.pdf(
-            format='A4',
-            print_background=True,
-            margin={
-                "top": "20px",
-                "bottom": "20px",
-                "left": "20px",
-                "right": "20px"
-            }
-        )
-
-        browser.close()
+    pdf = pdf_buffer.getvalue()
 
     # =====================================
     # RETURN PDF
