@@ -38,19 +38,18 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 from io import BytesIO
 from openpyxl.utils.dataframe import dataframe_to_rows
-import io
+from io import BytesIO
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
     Table,
-    TableStyle
+    TableStyle,
+    PageBreak
 )
-
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus.flowables import PageBreak
 
 
 
@@ -2184,6 +2183,10 @@ def download_customer_pdf(customer_name):
 
     company = session.get('company')
 
+    # =====================================
+    # LOAD DATA
+    # =====================================
+
     query = """
         SELECT *
         FROM sales_invoice_raw
@@ -2201,9 +2204,15 @@ def download_customer_pdf(customer_name):
         }
     )
 
+    # =====================================
+    # KPI
+    # =====================================
+
     total_invoice = len(df)
 
-    total_amount = df['Total Amount'].sum()
+    total_amount = df[
+        'Total Amount'
+    ].sum()
 
     avg_delay = round(
         df['Delay'].mean(),
@@ -2230,7 +2239,40 @@ def download_customer_pdf(customer_name):
         'Total Amount'
     ].sum()
 
+    # =====================================
+    # FORMAT DATE
+    # =====================================
+
+    date_cols = [
+        'Transaction Date',
+        'Due Date',
+        'Payment Date'
+    ]
+
+    for col in date_cols:
+
+        df[col] = pd.to_datetime(
+            df[col],
+            errors='coerce'
+        ).dt.strftime('%d-%m-%Y')
+
+    unpaid_df = df[
+        df['Status'] != 'Lunas'
+    ]
+
+    paid_df = df[
+        df['Status'] == 'Lunas'
+    ]
+
+    # =====================================
+    # BEHAVIOR ANALYSIS
+    # =====================================
+
     behavior_notes = generate_customer_behavior(df)
+
+    # =====================================
+    # COLLECTION NOTES
+    # =====================================
 
     notes_query = """
         SELECT *
@@ -2249,6 +2291,10 @@ def download_customer_pdf(customer_name):
         }
     )
 
+    # =====================================
+    # PDF SETUP
+    # =====================================
+
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -2257,107 +2303,401 @@ def download_customer_pdf(customer_name):
         rightMargin=30,
         leftMargin=30,
         topMargin=30,
-        bottomMargin=18
+        bottomMargin=20
     )
 
     styles = getSampleStyleSheet()
 
     elements = []
 
+    # =====================================
     # TITLE
+    # =====================================
+
+    title = Paragraph(
+        f"""
+        <font size=24>
+        <b>{customer_name}</b>
+        </font>
+        """,
+        styles['Title']
+    )
+
+    elements.append(title)
+
+    elements.append(
+        Spacer(1, 30)
+    )
+
+    # =====================================
+    # GENERAL OVERVIEW
+    # =====================================
+
     elements.append(
         Paragraph(
-            f"<b>{customer_name}</b>",
-            styles['Title']
+            """
+            <font size=18 color="#2563EB">
+            <b>General Overview</b>
+            </font>
+            """,
+            styles['Heading2']
         )
     )
 
-    elements.append(Spacer(1, 20))
+    elements.append(
+        Spacer(1, 15)
+    )
 
-    # GENERAL OVERVIEW
     overview_data = [
+
+        ['Metric', 'Value'],
+
         ['Total Invoice', str(total_invoice)],
-        ['Total Transaction', f'Rp {total_amount:,.0f}'],
-        ['Average Delay', f'{avg_delay} hari'],
-        ['Paid Invoice', str(paid_invoice)],
-        ['Outstanding Invoice', str(unpaid_count)],
-        ['Outstanding Amount', f'Rp {outstanding_amount:,.0f}']
+
+        ['Total Transaction',
+         f'Rp {total_amount:,.0f}'],
+
+        ['Average Delay',
+         f'{avg_delay} hari'],
+
+        ['Paid Invoice',
+         str(paid_invoice)],
+
+        ['Outstanding Invoice',
+         str(unpaid_count)],
+
+        ['Outstanding Amount',
+         f'Rp {outstanding_amount:,.0f}']
+
     ]
 
     overview_table = Table(
         overview_data,
-        colWidths=[200, 250]
+        colWidths=[230, 250]
     )
 
     overview_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
-        ('GRID', (0,0), (-1,-1), 1, colors.grey),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-    ]))
 
-    elements.append(
-        Paragraph(
-            "<b>GENERAL OVERVIEW</b>",
-            styles['Heading2']
+        (
+            'BACKGROUND',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#DBEAFE')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#1E3A8A')
+        ),
+
+        (
+            'GRID',
+            (0,0),
+            (-1,-1),
+            0.5,
+            colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'FONTNAME',
+            (0,0),
+            (-1,0),
+            'Helvetica-Bold'
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (-1,-1),
+            colors.HexColor('#F9FAFB')
+        ),
+
+        (
+            'BOTTOMPADDING',
+            (0,0),
+            (-1,-1),
+            10
+        ),
+
+        (
+            'TOPPADDING',
+            (0,0),
+            (-1,-1),
+            10
         )
-    )
 
-    elements.append(Spacer(1, 10))
+    ]))
 
     elements.append(overview_table)
 
-    elements.append(Spacer(1, 20))
+    elements.append(
+        Spacer(1, 35)
+    )
 
-    # BEHAVIOR
+    # =====================================
+    # PAYMENT SUCCESS + OUTSTANDING
+    # =====================================
+
+    payment_data = [
+
+        ['Payment Success', 'Outstanding Risk'],
+
+        [
+            f"""
+            Paid Invoice:
+            {paid_invoice}
+
+            Total Payment:
+            Rp {paid_amount:,.0f}
+            """,
+
+            f"""
+            Outstanding Invoice:
+            {unpaid_count}
+
+            Outstanding Amount:
+            Rp {outstanding_amount:,.0f}
+            """
+        ]
+    ]
+
+    payment_table = Table(
+        payment_data,
+        colWidths=[240, 240],
+        rowHeights=[35, 100]
+    )
+
+    payment_table.setStyle(TableStyle([
+
+        (
+            'BACKGROUND',
+            (0,0),
+            (0,0),
+            colors.HexColor('#DCFCE7')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (0,0),
+            (0,0),
+            colors.HexColor('#166534')
+        ),
+
+        (
+            'BACKGROUND',
+            (1,0),
+            (1,0),
+            colors.HexColor('#FEE2E2')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (1,0),
+            (1,0),
+            colors.HexColor('#991B1B')
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (0,1),
+            colors.HexColor('#F0FDF4')
+        ),
+
+        (
+            'BACKGROUND',
+            (1,1),
+            (1,1),
+            colors.HexColor('#FEF2F2')
+        ),
+
+        (
+            'GRID',
+            (0,0),
+            (-1,-1),
+            0.5,
+            colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'FONTNAME',
+            (0,0),
+            (-1,0),
+            'Helvetica-Bold'
+        ),
+
+        (
+            'BOTTOMPADDING',
+            (0,0),
+            (-1,-1),
+            12
+        ),
+
+        (
+            'TOPPADDING',
+            (0,0),
+            (-1,-1),
+            12
+        )
+
+    ]))
+
+    elements.append(payment_table)
+
+    elements.append(
+        Spacer(1, 35)
+    )
+
+    # =====================================
+    # BEHAVIOR ANALYSIS
+    # =====================================
+
     elements.append(
         Paragraph(
-            "<b>BEHAVIOR ANALYSIS</b>",
+            """
+            <font size=18>
+            <b>Behavior Analysis</b>
+            </font>
+            """,
             styles['Heading2']
         )
     )
 
-    elements.append(Spacer(1, 10))
+    elements.append(
+        Spacer(1, 15)
+    )
 
     for note in behavior_notes:
-        elements.append(
-            Paragraph(
-                f"• {note}",
-                styles['BodyText']
-            )
+
+        behavior_table = Table(
+            [[f"• {note}"]],
+            colWidths=[480]
         )
 
-    elements.append(Spacer(1, 20))
+        behavior_table.setStyle(TableStyle([
 
-    # COLLECTION NOTES
+            (
+                'BACKGROUND',
+                (0,0),
+                (-1,-1),
+                colors.HexColor('#EFF6FF')
+            ),
+
+            (
+                'TEXTCOLOR',
+                (0,0),
+                (-1,-1),
+                colors.HexColor('#1E3A8A')
+            ),
+
+            (
+                'GRID',
+                (0,0),
+                (-1,-1),
+                0.5,
+                colors.HexColor('#BFDBFE')
+            ),
+
+            (
+                'BOTTOMPADDING',
+                (0,0),
+                (-1,-1),
+                10
+            ),
+
+            (
+                'TOPPADDING',
+                (0,0),
+                (-1,-1),
+                10
+            )
+
+        ]))
+
+        elements.append(behavior_table)
+
+        elements.append(
+            Spacer(1, 10)
+        )
+
+    elements.append(
+        Spacer(1, 25)
+    )
+
+    # =====================================
+    # COLLECTION INSIGHTS
+    # =====================================
+
     elements.append(
         Paragraph(
-            "<b>COLLECTION INSIGHTS</b>",
+            """
+            <font size=18>
+            <b>Collection Insights</b>
+            </font>
+            """,
             styles['Heading2']
         )
     )
 
-    elements.append(Spacer(1, 10))
+    elements.append(
+        Spacer(1, 15)
+    )
 
     if len(notes_df) > 0:
 
         for _, note in notes_df.iterrows():
 
-            elements.append(
-                Paragraph(
-                    f"<b>{note['created_at']}</b>",
-                    styles['BodyText']
-                )
+            note_table = Table(
+                [[
+                    f"""
+                    <b>{note['created_at']}</b>
+                    <br/><br/>
+                    {note['note']}
+                    """
+                ]],
+                colWidths=[480]
             )
 
-            elements.append(
-                Paragraph(
-                    note['note'],
-                    styles['BodyText']
-                )
-            )
+            note_table.setStyle(TableStyle([
 
-            elements.append(Spacer(1, 10))
+                (
+                    'BACKGROUND',
+                    (0,0),
+                    (-1,-1),
+                    colors.HexColor('#F9FAFB')
+                ),
+
+                (
+                    'GRID',
+                    (0,0),
+                    (-1,-1),
+                    0.5,
+                    colors.HexColor('#E5E7EB')
+                ),
+
+                (
+                    'BOTTOMPADDING',
+                    (0,0),
+                    (-1,-1),
+                    12
+                ),
+
+                (
+                    'TOPPADDING',
+                    (0,0),
+                    (-1,-1),
+                    12
+                )
+
+            ]))
+
+            elements.append(note_table)
+
+            elements.append(
+                Spacer(1, 12)
+            )
 
     else:
 
@@ -2368,50 +2708,252 @@ def download_customer_pdf(customer_name):
             )
         )
 
-    elements.append(PageBreak())
+    elements.append(
+        PageBreak()
+    )
 
-    # OUTSTANDING TABLE
+    # =====================================
+    # OUTSTANDING INVOICE
+    # =====================================
+
     elements.append(
         Paragraph(
-            "<b>OUTSTANDING INVOICE</b>",
+            """
+            <font size=18 color="#DC2626">
+            <b>Outstanding Invoice</b>
+            </font>
+            """,
             styles['Heading2']
         )
     )
 
-    elements.append(Spacer(1, 10))
+    elements.append(
+        Spacer(1, 15)
+    )
 
     outstanding_data = [[
-        'Invoice',
+
+        'No. Invoice',
+        'Invoice Date',
         'Due Date',
-        'Balance',
+        'Payment Date',
+        'Total Amount',
+        'Balance Due',
         'Delay'
+
     ]]
 
     for _, row in unpaid_df.iterrows():
 
         outstanding_data.append([
+
             str(row['Invoice Number']),
+
+            str(row['Transaction Date']),
+
             str(row['Due Date']),
+
+            (
+                str(row['Payment Date'])
+                if pd.notnull(row['Payment Date'])
+                else '-'
+            ),
+
+            f"Rp {row['Total Amount']:,.0f}",
+
             f"Rp {row['Balance Due']:,.0f}",
+
             f"{row['Delay']} hari"
+
         ])
 
-    outstanding_table = Table(outstanding_data)
+    outstanding_table = Table(
+        outstanding_data,
+        repeatRows=1
+    )
 
     outstanding_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.red),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('GRID', (0,0), (-1,-1), 1, colors.black),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+
+        (
+            'BACKGROUND',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#FEE2E2')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#991B1B')
+        ),
+
+        (
+            'GRID',
+            (0,0),
+            (-1,-1),
+            0.5,
+            colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'FONTNAME',
+            (0,0),
+            (-1,0),
+            'Helvetica-Bold'
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (-1,-1),
+            colors.white
+        ),
+
+        (
+            'BOTTOMPADDING',
+            (0,0),
+            (-1,-1),
+            8
+        ),
+
+        (
+            'TOPPADDING',
+            (0,0),
+            (-1,-1),
+            8
+        )
+
     ]))
 
     elements.append(outstanding_table)
+
+    elements.append(
+        Spacer(1, 30)
+    )
+
+    # =====================================
+    # PAYMENT SUCCESS HISTORY
+    # =====================================
+
+    elements.append(
+        Paragraph(
+            """
+            <font size=18 color="#15803D">
+            <b>Payment Success History</b>
+            </font>
+            """,
+            styles['Heading2']
+        )
+    )
+
+    elements.append(
+        Spacer(1, 15)
+    )
+
+    payment_history_data = [[
+
+        'No. Invoice',
+        'Invoice Date',
+        'Due Date',
+        'Payment Date',
+        'Total Amount',
+        'Delay'
+
+    ]]
+
+    for _, row in paid_df.iterrows():
+
+        payment_history_data.append([
+
+            str(row['Invoice Number']),
+
+            str(row['Transaction Date']),
+
+            str(row['Due Date']),
+
+            str(row['Payment Date']),
+
+            f"Rp {row['Total Amount']:,.0f}",
+
+            f"{row['Delay']} hari"
+
+        ])
+
+    payment_history_table = Table(
+        payment_history_data,
+        repeatRows=1
+    )
+
+    payment_history_table.setStyle(TableStyle([
+
+        (
+            'BACKGROUND',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#DCFCE7')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#166534')
+        ),
+
+        (
+            'GRID',
+            (0,0),
+            (-1,-1),
+            0.5,
+            colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'FONTNAME',
+            (0,0),
+            (-1,0),
+            'Helvetica-Bold'
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (-1,-1),
+            colors.white
+        ),
+
+        (
+            'BOTTOMPADDING',
+            (0,0),
+            (-1,-1),
+            8
+        ),
+
+        (
+            'TOPPADDING',
+            (0,0),
+            (-1,-1),
+            8
+        )
+
+    ]))
+
+    elements.append(payment_history_table)
+
+    # =====================================
+    # BUILD PDF
+    # =====================================
 
     doc.build(elements)
 
     pdf = buffer.getvalue()
 
     buffer.close()
+
+    # =====================================
+    # RETURN PDF
+    # =====================================
 
     return Response(
         pdf,
