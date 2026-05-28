@@ -2355,19 +2355,10 @@ def download_customer_pdf(customer_name):
         ['Total Invoice', str(total_invoice)],
 
         ['Total Transaction',
-         f'Rp {total_amount:,.0f}'],
+        f'Rp {total_amount:,.0f}'],
 
         ['Average Delay',
-         f'{avg_delay} hari'],
-
-        ['Paid Invoice',
-         str(paid_invoice)],
-
-        ['Outstanding Invoice',
-         str(unpaid_count)],
-
-        ['Outstanding Amount',
-         f'Rp {outstanding_amount:,.0f}']
+        f'{avg_delay} hari']
 
     ]
 
@@ -2437,80 +2428,55 @@ def download_customer_pdf(customer_name):
     )
 
     # =====================================
-    # PAYMENT SUCCESS + OUTSTANDING
+    # PAYMENT SUCCESS
     # =====================================
 
-    payment_data = [
-
-        ['Payment Success', 'Outstanding Risk'],
-
-        [
-            f"""
-            Paid Invoice:
-            {paid_invoice}
-
-            Total Payment:
-            Rp {paid_amount:,.0f}
-            """,
-
-            f"""
-            Outstanding Invoice:
-            {unpaid_count}
-
-            Outstanding Amount:
-            Rp {outstanding_amount:,.0f}
+    elements.append(
+        Paragraph(
             """
-        ]
-    ]
-
-    payment_table = Table(
-        payment_data,
-        colWidths=[240, 240],
-        rowHeights=[35, 100]
+            <font size=18 color="#15803D">
+            <b>Payment Success</b>
+            </font>
+            """,
+            styles['Heading2']
+        )
     )
 
-    payment_table.setStyle(TableStyle([
+    elements.append(
+        Spacer(1, 12)
+    )
+
+    payment_success_data = [
+
+        ['Metric', 'Value'],
+
+        ['Paid Invoice',
+        str(paid_invoice)],
+
+        ['Total Payment',
+        f'Rp {paid_amount:,.0f}']
+
+    ]
+
+    payment_success_table = Table(
+        payment_success_data,
+        colWidths=[230, 250]
+    )
+
+    payment_success_table.setStyle(TableStyle([
 
         (
             'BACKGROUND',
             (0,0),
-            (0,0),
+            (-1,0),
             colors.HexColor('#DCFCE7')
         ),
 
         (
             'TEXTCOLOR',
             (0,0),
-            (0,0),
+            (-1,0),
             colors.HexColor('#166534')
-        ),
-
-        (
-            'BACKGROUND',
-            (1,0),
-            (1,0),
-            colors.HexColor('#FEE2E2')
-        ),
-
-        (
-            'TEXTCOLOR',
-            (1,0),
-            (1,0),
-            colors.HexColor('#991B1B')
-        ),
-
-        (
-            'BACKGROUND',
-            (0,1),
-            (0,1),
-            colors.HexColor('#F0FDF4')
-        ),
-
-        (
-            'BACKGROUND',
-            (1,1),
-            (1,1),
-            colors.HexColor('#FEF2F2')
         ),
 
         (
@@ -2519,6 +2485,13 @@ def download_customer_pdf(customer_name):
             (-1,-1),
             0.5,
             colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (-1,-1),
+            colors.HexColor('#F9FAFB')
         ),
 
         (
@@ -2532,22 +2505,118 @@ def download_customer_pdf(customer_name):
             'BOTTOMPADDING',
             (0,0),
             (-1,-1),
-            12
+            10
         ),
 
         (
             'TOPPADDING',
             (0,0),
             (-1,-1),
-            12
+            10
         )
 
     ]))
 
-    elements.append(payment_table)
+    elements.append(payment_success_table)
 
     elements.append(
-        Spacer(1, 35)
+        Spacer(1, 25)
+    )
+
+    # =====================================
+    # OUTSTANDING RISK
+    # =====================================
+
+    elements.append(
+        Paragraph(
+            """
+            <font size=18 color="#DC2626">
+            <b>Outstanding Risk</b>
+            </font>
+            """,
+            styles['Heading2']
+        )
+    )
+
+    elements.append(
+        Spacer(1, 12)
+    )
+
+    outstanding_summary_data = [
+
+        ['Metric', 'Value'],
+
+        ['Outstanding Invoice',
+        str(unpaid_count)],
+
+        ['Outstanding Amount',
+        f'Rp {outstanding_amount:,.0f}']
+
+    ]
+
+    outstanding_summary_table = Table(
+        outstanding_summary_data,
+        colWidths=[230, 250]
+    )
+
+    outstanding_summary_table.setStyle(TableStyle([
+
+        (
+            'BACKGROUND',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#FEE2E2')
+        ),
+
+        (
+            'TEXTCOLOR',
+            (0,0),
+            (-1,0),
+            colors.HexColor('#991B1B')
+        ),
+
+        (
+            'GRID',
+            (0,0),
+            (-1,-1),
+            0.5,
+            colors.HexColor('#D1D5DB')
+        ),
+
+        (
+            'BACKGROUND',
+            (0,1),
+            (-1,-1),
+            colors.HexColor('#F9FAFB')
+        ),
+
+        (
+            'FONTNAME',
+            (0,0),
+            (-1,0),
+            'Helvetica-Bold'
+        ),
+
+        (
+            'BOTTOMPADDING',
+            (0,0),
+            (-1,-1),
+            10
+        ),
+
+        (
+            'TOPPADDING',
+            (0,0),
+            (-1,-1),
+            10
+        )
+
+    ]))
+
+    elements.append(outstanding_summary_table)
+
+    elements.append(
+        Spacer(1, 30)
     )
 
     # =====================================
@@ -2707,10 +2776,6 @@ def download_customer_pdf(customer_name):
                 styles['BodyText']
             )
         )
-
-    elements.append(
-        PageBreak()
-    )
 
     # =====================================
     # OUTSTANDING INVOICE
