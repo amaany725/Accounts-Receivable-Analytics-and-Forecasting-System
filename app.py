@@ -50,7 +50,7 @@ from reportlab.platypus import (
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-
+from celery_worker import sync_task
 
 
 app = Flask(__name__)
@@ -926,34 +926,37 @@ def sync_data():
     sync_mode = request.form.get('sync_mode')
     start_date = request.form.get('start_date')
     end_date = request.form.get('end_date')
-    sync_logs = []
+
+    # =====================================
+    # JALANKAN BACKGROUND TASK
+    # =====================================
+
+    sync_task.delay(
+        company,
+        sync_mode,
+        start_date,
+        end_date
+    )
+
     token_data = load_token()
+
     token = None
 
     if token_data:
         token = token_data.get('access_token')
 
-    # =====================================
-    # SYNC DATA
-    # =====================================
-    sync_logs.append('Mengambil data invoice...')
+    sync_logs = [
+        'Sinkronisasi sedang berjalan di background...',
+        'Silakan cek kembali beberapa menit lagi.'
+    ]
 
-    get_invoices(
-        company=company,
-        sync_mode=sync_mode,
-        start_date=start_date,
-        end_date=end_date
-    )
-    sync_logs.append('Preprocessing data invoice...')
-    preprocess_new_invoice(company)
-    sync_logs.append('Update historical dataset...')
-    append_historical_dataset(company)
-    sync_logs.append('Sinkronisasi selesai!')
     return render_template(
         'accurate.html',
         token=token,
         sync_logs=sync_logs
     )
+
+
 # =========================================
 # HISTORY FORECAST
 # =========================================
