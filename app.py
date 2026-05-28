@@ -2167,165 +2167,229 @@ def download_customer_excel(customer_name):
 @app.route('/download-customer-pdf/<customer_name>')
 def download_customer_pdf(customer_name):
 
-    import io
-    import pandas as pd
-
-    from flask import send_file
-    from reportlab.platypus import (
-        SimpleDocTemplate,
-        Paragraph,
-        Spacer,
-        Table,
-        TableStyle
-    )
-    from reportlab.lib import colors
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.pagesizes import A4
-
-    from database import engine
+    company = session.get('company')
 
     # =====================================
-    # LOAD DATA
+    # LOAD CUSTOMER DATA
     # =====================================
-
     query = """
         SELECT *
-        FROM history_forecast
+        FROM sales_invoice_raw
         WHERE "Customer" = %(customer)s
-        ORDER BY id DESC
-        LIMIT 10
+        AND company_name = %(company)s
+        ORDER BY "Transaction Date" DESC
     """
 
     df = pd.read_sql(
         query,
         engine,
         params={
-            'customer': customer_name
+            'customer': customer_name,
+            'company': company
         }
     )
 
     # =====================================
-    # PDF BUFFER
+    # KPI
     # =====================================
+    total_invoice = len(df)
 
-    buffer = io.BytesIO()
+    total_amount = df[
+        'Total Amount'
+    ].sum()
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=30,
-        leftMargin=30,
-        topMargin=30,
-        bottomMargin=30
+    avg_delay = round(
+        df['Delay'].mean(),
+        2
     )
 
-    elements = []
-
-    styles = getSampleStyleSheet()
-
     # =====================================
-    # TITLE
+    # FIRST & LAST TRANSACTION
     # =====================================
+    first_transaction_date = pd.to_datetime(
+        df['Transaction Date'],
+        errors='coerce'
+    ).min()
 
-    title = Paragraph(
-        f"<b>Customer Analysis Report</b><br/>{customer_name}",
-        styles['Title']
-    )
+    last_transaction_date = pd.to_datetime(
+        df['Transaction Date'],
+        errors='coerce'
+    ).max()
 
-    elements.append(title)
-    elements.append(Spacer(1, 20))
-
-    # =====================================
-    # SUMMARY
-    # =====================================
-
-    total_forecast = len(df)
-
-    summary = Paragraph(
-        f"""
-        <b>Total Forecast Records:</b> {total_forecast}<br/>
-        <b>Generated From:</b> PayRisk Analytics System
-        """,
-        styles['BodyText']
-    )
-
-    elements.append(summary)
-    elements.append(Spacer(1, 20))
-
-    # =====================================
-    # TABLE
-    # =====================================
-
-    if len(df) > 0:
-
-        selected_cols = []
-
-        for col in [
-            'invoice_number',
-            'prediction',
-            'risk_level',
-            'payment_delay_days'
-        ]:
-            if col in df.columns:
-                selected_cols.append(col)
-
-        table_data = [selected_cols]
-
-        for _, row in df.iterrows():
-
-            row_data = []
-
-            for col in selected_cols:
-                row_data.append(str(row[col]))
-
-            table_data.append(row_data)
-
-        table = Table(table_data)
-
-        table.setStyle(TableStyle([
-
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F3A5F')),
-
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-
-            ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
-
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-
-        ]))
-
-        elements.append(table)
-
+    if pd.notnull(first_transaction_date):
+        first_transaction = first_transaction_date.strftime(
+            '%d-%m-%Y'
+        )
     else:
+        first_transaction = '-'
 
-        elements.append(
-            Paragraph(
-                "No forecast history available.",
-                styles['BodyText']
-            )
+    if pd.notnull(last_transaction_date):
+        last_transaction = last_transaction_date.strftime(
+            '%d-%m-%Y'
+        )
+    else:
+        last_transaction = '-'
+
+    # =====================================
+    # SPLIT DATA
+    # =====================================
+    unpaid_df = df[
+        df['Status'] != 'Lunas'
+    ]
+
+    paid_df = df[
+        df['Status'] == 'Lunas'
+    ]
+
+    unpaid_count = len(unpaid_df)
+
+    outstanding_amount = unpaid_df[
+        'Balance Due'
+    ].sum()
+
+    paid_invoice = len(paid_df)
+
+    paid_amount = paid_df[
+        'Total Amount'
+    ].sum()
+
+    # =====================================
+    # FORMAT DATE
+    # =====================================
+    date_cols = [
+        'Transaction Date',
+        'Due Date',
+        'Payment Date'
+    ]
+
+    for col in date_cols:
+        df[col] = pd.to_datetime(
+            df[col],
+            errors='coerce'
+        ).dt.strftime('%d-%m-%Y')
+
+    unpaid_df = df[
+        df['Status'] != 'Lunas'
+    ]
+
+    paid_df = df[
+        df['Status'] == 'Lunas'
+    ]
+
+    # =====================================
+    # COLLECTION NOTES
+    # =====================================
+    notes_query = """
+        SELECT *
+        FROM customer_notes
+        WHERE customer_name = %(customer)s
+        AND company_name = %(company)s
+        ORDER BY created_at DESC
+    """
+
+    notes_df = pd.read_sql(
+        notes_query,
+        engine,
+        params={
+            'customer': customer_name,
+            'company': company
+        }
+    )
+
+    notes_df['created_at'] = pd.to_datetime(
+        notes_df['created_at']
+    ).dt.strftime('%d-%m-%Y %H:%M')
+
+    notes_data = notes_df.to_dict(
+        orient='records'
+    )
+
+    # =====================================
+    # BEHAVIOR NOTES
+    # =====================================
+    behavior_notes = generate_customer_behavior(df)
+
+    # =====================================
+    # RENDER HTML
+    # =====================================
+    html = render_template(
+        'customer_pdf.html',
+
+        customer_name=customer_name,
+
+        total_invoice=total_invoice,
+        total_amount=total_amount,
+        avg_delay=avg_delay,
+
+        first_transaction=first_transaction,
+        last_transaction=last_transaction,
+
+        paid_invoice=paid_invoice,
+        paid_amount=paid_amount,
+
+        unpaid_count=unpaid_count,
+        outstanding_amount=outstanding_amount,
+
+        behavior_notes=behavior_notes,
+
+        notes_data=notes_data,
+
+        outstanding_table=unpaid_df.to_dict(
+            orient='records'
+        ),
+
+        payment_table=paid_df.to_dict(
+            orient='records'
+        )
+    )
+
+    # =====================================
+    # GENERATE PDF
+    # =====================================
+    with sync_playwright() as p:
+
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage"
+            ]
         )
 
+        page = browser.new_page()
+
+        page.set_content(
+            html,
+            wait_until='networkidle'
+        )
+
+        page.emulate_media(
+            media='print'
+        )
+
+        pdf = page.pdf(
+            format='A4',
+            print_background=True,
+            margin={
+                "top": "20px",
+                "bottom": "20px",
+                "left": "20px",
+                "right": "20px"
+            }
+        )
+
+        browser.close()
+
     # =====================================
-    # BUILD PDF
+    # RETURN PDF
     # =====================================
-
-    doc.build(elements)
-
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=f'{customer_name}_analysis.pdf',
-        mimetype='application/pdf'
+    return Response(
+        pdf,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition':
+            f'attachment; filename="{customer_name}_analysis.pdf"'
+        }
     )
 
 # =========================================
