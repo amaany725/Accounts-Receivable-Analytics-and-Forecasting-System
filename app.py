@@ -26,7 +26,7 @@ matplotlib.use('Agg')
 import re
 import matplotlib.pyplot as plt
 from io import BytesIO
-from playwright.sync_api import sync_playwright
+# from playwright.sync_api import sync_playwright
 from openpyxl import Workbook
 from openpyxl.styles import (
     Font,
@@ -38,6 +38,9 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 from io import BytesIO
 from openpyxl.utils.dataframe import dataframe_to_rows
+import io
+from xhtml2pdf import pisa
+
 
 app = Flask(__name__)
 
@@ -2346,9 +2349,6 @@ def download_customer_pdf(customer_name):
     # =====================================
     # GENERATE PDF
     # =====================================
-    import io
-    from xhtml2pdf import pisa
-
     pdf_buffer = io.BytesIO()
 
     pisa.CreatePDF(
