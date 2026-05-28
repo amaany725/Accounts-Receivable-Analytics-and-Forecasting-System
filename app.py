@@ -638,7 +638,8 @@ def get_invoices(
             )
         response = requests.get(
             url,
-            headers=headers
+            headers=headers,
+            timeout = 30
         )
         response_json = response.json()
         data = response_json.get('d', [])
