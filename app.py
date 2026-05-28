@@ -2828,7 +2828,11 @@ def download_customer_pdf(customer_name):
 
             f"Rp {row['Balance Due']:,.0f}",
 
-            f"{row['Delay']} hari"
+            (
+                f"{int(row['Delay'])} hari"
+                if pd.notnull(row['Delay'])
+                else "-"
+            )
 
         ])
 
@@ -2941,7 +2945,11 @@ def download_customer_pdf(customer_name):
 
             f"Rp {row['Total Amount']:,.0f}",
 
-            f"{row['Delay']} hari"
+            (
+                f"{int(row['Delay'])} hari"
+                if pd.notnull(row['Delay'])
+                else "-"
+            )
 
         ])
 
