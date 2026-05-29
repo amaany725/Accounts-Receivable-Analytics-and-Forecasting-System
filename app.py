@@ -6,7 +6,8 @@ from flask import (
     redirect,
     session,
     send_file,
-    Response
+    Response,
+    url_for
 )
 from datetime import datetime
 import pandas as pd
@@ -574,6 +575,9 @@ def sync_data():
         if token_data:
             token = token_data.get('access_token')
 
+        # return redirect(
+        #     url_for('accurate_page')
+        # )
         return render_template(
             'accurate.html',
             token=token,
@@ -581,7 +585,7 @@ def sync_data():
                 'Database Accurate belum dibuka.'
             ]
         )
-    # =====================================
+    # # =====================================
     # JALANKAN BACKGROUND TASK
     # =====================================
     with engine.begin() as conn:
@@ -628,25 +632,27 @@ def sync_data():
         access_token
     )
 
-    token_data = load_token()
+    # token_data = load_token()
 
-    token = None
+    # token = None
 
-    if token_data:
-        token = token_data.get('access_token')
+    # if token_data:
+    #     token = token_data.get('access_token')
 
-    sync_logs = [
-        'Sinkronisasi sedang berjalan di background...',
-        'Silakan cek kembali beberapa menit lagi.'
-    ]
+    # sync_logs = [
+    #     'Sinkronisasi sedang berjalan di background...',
+    #     'Silakan cek kembali beberapa menit lagi.'
+    # ]
 
-    return render_template(
-        'accurate.html',
-        token=token,
-        sync_logs=sync_logs
+    # return render_template(
+    #     'accurate.html',
+    #     token=token,
+    #     sync_logs=sync_logs
+    # )
+
+    return redirect(
+        url_for('accurate_page')
     )
-
-
 # =========================================
 # HISTORY FORECAST
 # =========================================
