@@ -519,7 +519,8 @@ def sync_data():
         start_date,
         end_date,
         host,
-        db_session
+        db_session,
+        access_token
     )
 
     token_data = load_token()
