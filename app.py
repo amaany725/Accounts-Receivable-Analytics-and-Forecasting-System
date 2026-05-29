@@ -55,6 +55,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from celery_worker import sync_task
+from datetime import timedelta
 
 
 app = Flask(__name__)
@@ -423,6 +424,23 @@ def accurate_page():
                 .to_dict()
             )
 
+            from zoneinfo import ZoneInfo
+
+            if sync_status.get('start_time'):
+
+                sync_status['start_time'] = (
+                    sync_status['start_time']
+                    .tz_localize('UTC')
+                    .tz_convert('Asia/Jakarta')
+                )
+
+            if sync_status.get('finish_time'):
+
+                sync_status['finish_time'] = (
+                    sync_status['finish_time']
+                    .tz_localize('UTC')
+                    .tz_convert('Asia/Jakarta')
+                )
     except Exception as e:
 
         print(
