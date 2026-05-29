@@ -31,7 +31,8 @@ def sync_task(
         # =====================================
         # UPDATE STATUS RUNNING
         # =====================================
-
+        print("DATABASE URL CELERY:")
+        print(engine.url)
         with engine.begin() as conn:
 
             conn.execute(

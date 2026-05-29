@@ -407,6 +407,7 @@ def accurate_page():
             SELECT *
             FROM sync_status
             WHERE company_name = %(company)s
+            ORDER BY start_time DESC
             LIMIT 1
             """,
             engine,
@@ -567,6 +568,18 @@ def sync_data():
     # =====================================
     with engine.begin() as conn:
 
+        # hapus status lama company ini
+        conn.execute(
+            text("""
+                DELETE FROM sync_status
+                WHERE company_name = :company
+            """),
+            {
+                "company": company
+            }
+        )
+
+        # insert status baru
         conn.execute(
             text("""
                 INSERT INTO sync_status
