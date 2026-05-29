@@ -429,7 +429,8 @@ def accurate_page():
         )
 
         print(e)
-
+    print("SYNC STATUS:")
+    print(sync_status)
     return render_template(
         'accurate.html',
         token=token,
