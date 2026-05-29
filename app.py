@@ -489,7 +489,9 @@ def sync_data():
     end_date = request.form.get('end_date')
     host = session.get('db_host')
     db_session = session.get('db_session')
-
+    access_token = session.get(
+        'access_token'
+    )
     if not host or not db_session:
 
         token_data = load_token()

@@ -20,7 +20,8 @@ def sync_task(
     start_date,
     end_date,
     host,
-    db_session
+    db_session,
+    access_token
 ):
 
     print('START BACKGROUND SYNC')
@@ -31,7 +32,8 @@ def sync_task(
         start_date=start_date,
         end_date=end_date,
         host=host,
-        db_session=db_session
+        db_session=db_session,
+        access_token=access_token
     )
 
     print('PREPROCESS FEATURE')

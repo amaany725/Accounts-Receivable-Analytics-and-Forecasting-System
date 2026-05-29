@@ -18,12 +18,13 @@ def get_invoices(
     start_date=None,
     end_date=None,
     host=None,
-    db_session=None
+    db_session=None,
+    access_token=None
 ):
 
     # host = session.get('db_host')
     # db_session = session.get('db_session')
-    access_token = get_valid_access_token()
+    # access_token = get_valid_access_token()
     print("ACCESS TOKEN:")
     print(access_token)
     if not host:
