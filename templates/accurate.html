@@ -104,7 +104,59 @@
             </div>
 
         </div>
+        {% if sync_status %}
 
+        <div class="custom-card mb-4">
+
+            <h4 class="mb-3">
+
+                Sync Status
+
+            </h4>
+
+            <p>
+
+                <strong>Last Sync:</strong>
+
+                {{ sync_status.start_time }}
+
+            </p>
+
+            {% if sync_status.status == 'RUNNING' %}
+
+                <p class="text-warning">
+
+                    🟡 Synchronization Running
+
+                </p>
+
+            {% elif sync_status.status == 'SUCCESS' %}
+
+                <p class="text-success">
+
+                    🟢 Synchronization Completed
+
+                </p>
+
+            {% elif sync_status.status == 'FAILED' %}
+
+                <p class="text-danger">
+
+                    🔴 Synchronization Failed
+
+                </p>
+
+                <small>
+
+                    {{ sync_status.message }}
+
+                </small>
+
+            {% endif %}
+
+        </div>
+
+        {% endif %}
         <!-- ===================================== -->
         <!-- SYNC SECTION -->
         <!-- ===================================== -->
@@ -338,10 +390,10 @@ if(form){
 
         const messages = [
 
-            'Mengambil data invoice...',
-            'Preprocessing data invoice...',
-            'Update historical dataset...',
-            'Sinkronisasi berjalan...'
+            'Menjadwalkan sinkronisasi...',
+            'Task berhasil dikirim ke worker...',
+            'Sinkronisasi berjalan di background...',
+            'Anda dapat melanjutkan menggunakan aplikasi...'
 
         ];
 

@@ -379,21 +379,71 @@ def customer_suggestions():
 # =========================================
 @app.route('/accurate')
 def accurate_page():
+
     token_data = load_token()
+
     token = None
+
     if token_data:
-        token = token_data.get('access_token')
+
+        token = token_data.get(
+            'access_token'
+        )
+
+    # =====================================
+    # LOAD STATUS SYNC TERAKHIR
+    # =====================================
+
+    sync_status = None
+
+    try:
+
+        company = session.get(
+            'company'
+        )
+
+        status_df = pd.read_sql(
+            """
+            SELECT *
+            FROM sync_status
+            WHERE company_name = %(company)s
+            LIMIT 1
+            """,
+            engine,
+            params={
+                "company": company
+            }
+        )
+
+        if len(status_df) > 0:
+
+            sync_status = (
+                status_df.iloc[0]
+                .to_dict()
+            )
+
+    except Exception as e:
+
+        print(
+            'GAGAL LOAD SYNC STATUS'
+        )
+
+        print(e)
+
     return render_template(
         'accurate.html',
         token=token,
-        sync_logs=None
+        sync_logs=None,
+        sync_status=sync_status
     )
+
 
 # =========================================
 # CONNECT ACCURATE
 # =========================================
 @app.route('/connect-accurate')
 def connect_accurate():
+
     auth_url = (
         f'https://account.accurate.id/oauth/authorize?'
         f'client_id={CLIENT_ID}'
@@ -401,7 +451,10 @@ def connect_accurate():
         f'&redirect_uri={REDIRECT_URI}'
         f'&scope=customer_view sales_invoice_view'
     )
-    return redirect(auth_url)
+
+    return redirect(
+        auth_url
+    )
 
 # =========================================
 # CALLBACK OAUTH
@@ -511,8 +564,28 @@ def sync_data():
     # =====================================
     # JALANKAN BACKGROUND TASK
     # =====================================
-    print("REDIS_URL WEB:")
-    print(os.getenv("REDIS_URL"))
+    with engine.begin() as conn:
+
+        conn.execute(
+            text("""
+                INSERT INTO sync_status
+                (
+                    company_name,
+                    status,
+                    start_time
+                )
+                VALUES
+                (
+                    :company,
+                    'RUNNING',
+                    NOW()
+                )
+            """),
+            {
+                "company": company
+            }
+        )
+
     sync_task.delay(
         company,
         sync_mode,
