@@ -430,5 +430,19 @@ if(form){
 
 </script>
 
+{% if sync_status and sync_status.status == 'RUNNING' %}
+
+<script>
+
+setTimeout(function() {
+
+    location.reload();
+
+}, 8000);
+
+</script>
+
+{% endif %}
+
 </body>
 </html>
