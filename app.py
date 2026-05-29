@@ -198,8 +198,8 @@ def select_company(company):
 @app.route('/forecast', methods=['GET', 'POST'])
 def index():
 
-    result = None
-    customer_name = None
+    result = session.get('last_result')
+    customer_name = session.get('last_customer')
     if request.method == 'POST':
         df_hist = load_historical_data(
             session.get('company')
@@ -284,6 +284,9 @@ def index():
             'description': desc,
             'special_note': special_note
         }
+
+        session['last_result'] = result
+        session['last_customer'] = customer_name
 
         # =====================================
         # SIMPAN HISTORY FORECAST
