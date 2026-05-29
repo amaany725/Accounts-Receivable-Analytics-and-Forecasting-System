@@ -24,7 +24,8 @@ def get_invoices(
     # host = session.get('db_host')
     # db_session = session.get('db_session')
     access_token = get_valid_access_token()
-
+    print("ACCESS TOKEN:")
+    print(access_token)
     if not host:
         return 'Database belum dibuka'
 
@@ -69,8 +70,26 @@ def get_invoices(
         response = requests.get(
             url,
             headers=headers,
-            timeout = 30
+            timeout=30
         )
+
+        print("=" * 50)
+        print("URL:")
+        print(url)
+
+        print("HOST:")
+        print(host)
+
+        print("DB SESSION:")
+        print(db_session)
+
+        print("STATUS CODE:")
+        print(response.status_code)
+
+        print("RESPONSE TEXT:")
+        print(response.text[:1000])
+        print("=" * 50)
+
         response_json = response.json()
         data = response_json.get('d', [])
 
