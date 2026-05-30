@@ -2008,6 +2008,11 @@ def download_customer_pdf(customer_name):
         }
     )
 
+    notes_df['created_at'] = (
+        notes_df['created_at']
+        .dt.tz_localize(None)
+        .dt.strftime('%d-%m-%Y %H:%M')
+    )
     # =====================================
     # PDF SETUP
     # =====================================
@@ -2438,7 +2443,9 @@ def download_customer_pdf(customer_name):
             note_table = Table(
                 [[
                     f"""
-                    <b>{note['created_at']}</b>
+                    <font color="#6B7280">
+                    {note['created_at']}
+                    </font>
                     <br/><br/>
                     {note['note']}
                     """
