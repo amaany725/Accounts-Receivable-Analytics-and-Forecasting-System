@@ -2439,17 +2439,18 @@ def download_customer_pdf(customer_name):
     if len(notes_df) > 0:
 
         for _, note in notes_df.iterrows():
-
+            note_paragraph = Paragraph(
+                f"""
+                <font color="#6B7280">
+                {note['created_at']}
+                </font>
+                <br/><br/>
+                {note['note']}
+                """,
+                styles['BodyText']
+            )
             note_table = Table(
-                [[
-                    f"""
-                    <font color="#6B7280">
-                    {note['created_at']}
-                    </font>
-                    <br/><br/>
-                    {note['note']}
-                    """
-                ]],
+                [[note_paragraph]],
                 colWidths=[480]
             )
 
