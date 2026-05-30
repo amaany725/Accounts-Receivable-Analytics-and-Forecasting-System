@@ -152,6 +152,20 @@ def select_company(company):
     session['company'] = company
 
     # =====================================
+    # RESET HASIL FORECAST
+    # =====================================
+
+    session.pop(
+        'last_result',
+        None
+    )
+
+    session.pop(
+        'last_customer',
+        None
+    )
+    
+    # =====================================
     # RESET DATABASE SESSION
     # =====================================
     session.pop('db_session', None)
